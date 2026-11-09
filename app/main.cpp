@@ -1,6 +1,7 @@
 // @formatter:off
 
 #include "Shader.hpp"
+#include "Texture.hpp"
 
 
 #include <glad/glad.h>
@@ -9,6 +10,7 @@
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <vector>
 
 // @formatter:on
 
@@ -27,6 +29,24 @@ void initPolygon();
 
 unsigned int polygonVAO, polygonVBO;
 int polygonSides = 0;
+
+float quadrantColors[4][3] = {
+        {1.0f, 1.0f, 1.0f},
+        {1.0f, 1.0f, 1.0f},
+        {1.0f, 1.0f, 1.0f},
+        {1.0f, 1.0f, 1.0f}};
+
+const float quadrantOffsets[4][2] = {
+        {-1.0f, 0.0f},
+        {0.0f, 0.0f},
+        {-1.0f, -1.0f},
+        {0.0f, -1.0f}};
+
+int quadrantMix[4] = {0, 0, 0, 0};
+int quadrantHasColor[4] = {0, 0, 0, 0};
+
+std::vector<Texture> textures;
+bool useLinear = true;
 
 int main() {
 
@@ -60,13 +80,13 @@ int main() {
 
     float vertices[] = {
 
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
 
-            0.0f, 1.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 0.0f
+            0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 1.0f
 
     };
 
@@ -81,12 +101,19 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) nullptr);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(0);
-
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+
+    textures.emplace_back("resources/textures/awesomeface.png");
+    textures.emplace_back("resources/textures/bricks2.jpg");
+    textures.emplace_back("resources/textures/marble.jpg");
+    textures.emplace_back("resources/textures/matrix.jpg");
 
     //initPolygon();
 
@@ -99,23 +126,17 @@ int main() {
 
         //glUseProgram(shaderProgram);
         shader.use();
+        shader.setInt("uTexture", 0);
         glBindVertexArray(VAO);
 
-        shader.setVec2("uOff", -1.0f, 0.0f);
-        shader.setVec3("uColor", 1.0f, 0.0f, 0.0f);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        shader.setVec2("uOff", 0.0f, 0.0f);
-        shader.setVec3("uColor", 0.0f, 1.0f, 0.0f);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        shader.setVec2("uOff", -1.0f, -1.0f);
-        shader.setVec3("uColor", 0.0f, 0.0f, 1.0f);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        shader.setVec2("uOff", 0.0f, -1.0f);
-        shader.setVec3("uColor", 1.0f, 1.0f, 0.0f);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        for (int i = 0; i < 4; i++) {
+            textures[i].bindTexture(0);
+            shader.setInt("uMix", quadrantMix[i]);
+            shader.setInt("uHasColor", quadrantHasColor[i]);
+            shader.setVec2("uOff", quadrantOffsets[i][0], quadrantOffsets[i][1]);
+            shader.setVec3("uColor", quadrantColors[i][0], quadrantColors[i][1], quadrantColors[i][2]);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
         // if (polygonSides >= 3) {
         //     drawPolygon(polygonSides);
         // }
@@ -128,6 +149,7 @@ int main() {
     //glDeleteBuffers(1, &polygonVBO);
     //glDeleteVertexArrays(1, &polygonVAO);
 
+    for (auto &t: textures) t.deleteTexture();
     shader.deleteProgram();
     glfwTerminate();
     return 0;
@@ -138,6 +160,34 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+
+    if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+        useLinear = !useLinear;
+        for (auto &t: textures) {
+            t.setFilter(useLinear ? GL_LINEAR : GL_NEAREST);
+        }
+        return;
+    }
+
+    if ((mods & GLFW_MOD_SHIFT) && action == GLFW_PRESS &&
+        (key == GLFW_KEY_R || key == GLFW_KEY_G || key == GLFW_KEY_B || key == GLFW_KEY_T)) {
+
+        for (int i = 0; i < 4; i++) {
+            if (glfwGetKey(window, GLFW_KEY_1 + i) != GLFW_PRESS) continue;
+
+            if (key == GLFW_KEY_T) {
+                quadrantMix[i] = !quadrantMix[i];
+            } else {
+                float *c = quadrantColors[i];
+                c[0] = (key == GLFW_KEY_R) ? 1.0f : 0.0f;
+                c[1] = (key == GLFW_KEY_G) ? 1.0f : 0.0f;
+                c[2] = (key == GLFW_KEY_B) ? 1.0f : 0.0f;
+                quadrantHasColor[i] = 1;
+            }
+        }
+        return;
+    }
+
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
     }

@@ -20,6 +20,7 @@ std::string readFile(std::string filePath) {
 }
 }// namespace
 
+
 Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
 
     std::string vertexShaderSource = readFile(vertexShaderPath);
@@ -35,6 +36,7 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
         glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
         std::cout << "Failed to compile vertex shader\n"
                   << infoLog << "\n";
+        std::exit(EXIT_FAILURE);
     }
 
     std::string fragmentShaderSource = readFile(fragmentShaderPath);
@@ -49,6 +51,7 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
         glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
         std::cout << "Failed to compile fragment shader\n"
                   << infoLog << "\n";
+        std::exit(EXIT_FAILURE);
     }
 
     unsigned shaderProgram = glCreateProgram();
@@ -61,6 +64,7 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
         glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
         std::cout << "Failed to link shader program\n"
                   << infoLog << "\n";
+        std::exit(EXIT_FAILURE);
     }
 
     glDeleteShader(vertexShader);
@@ -70,11 +74,15 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
 void Shader::use() {
     glUseProgram(myId);
 }
+
 void Shader::setVec2(const std::string &name, float x, float y) {
     glUniform2f(glGetUniformLocation(myId, name.c_str()), x, y);
 }
 void Shader::setVec3(const std::string &name, float x, float y, float z) {
     glUniform3f(glGetUniformLocation(myId, name.c_str()), x, y, z);
+}
+void Shader::setInt(const std::string &name, int value) {
+    glUniform1i(glGetUniformLocation(myId, name.c_str()), value);
 }
 void Shader::deleteProgram() {
     glDeleteProgram(myId);
