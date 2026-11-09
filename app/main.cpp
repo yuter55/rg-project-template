@@ -1,5 +1,8 @@
 // @formatter:off
 
+#include "Shader.hpp"
+
+
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
@@ -9,33 +12,6 @@
 
 // @formatter:on
 
-const char *vertexShaderSource = R"S(
-#version 330 core
-
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aCol;
-
-out vec3 outColor;
-
-void main()
-{
-    gl_Position = vec4(aPos, 1.0);
-    outColor = aCol;
-}
-)S";
-
-const char *fragmentShaderSource = R"S(
-#version 330 core
-
-out vec4 FragColor;
-
-in vec3 outColor;
-
-void main()
-{
-    FragColor = vec4(outColor, 1.0f);
-}
-)S";
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 
@@ -79,82 +55,18 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    unsigned vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
-    glCompileShader(vertexShader);
-
-    int success = 0;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (success == GL_FALSE) {
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        std::cout << "Failed to compile vertex shader\n"
-                  << infoLog << "\n";
-    }
-
-    unsigned fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-
-    if (success == GL_FALSE) {
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        std::cout << "Failed to compile fragment shader\n"
-                  << infoLog << "\n";
-    }
-
-    unsigned shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (success == GL_FALSE) {
-        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-        std::cout << "Failed to link shader program\n"
-                  << infoLog << "\n";
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    Shader shader("resources/shaders/vertexShader.vs",
+                  "resources/shaders/fragmentShader.fs");
 
     float vertices[] = {
 
-            -1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-            -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f,
 
-            -1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-
-
-            0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-
-            0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-
-
-            -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-
-            -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-
-
-            0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-
-            0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-            1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-            1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f
+            0.0f, 1.0f, 0.0f,
+            1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f
 
     };
 
@@ -169,16 +81,14 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) nullptr);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) nullptr);
     glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
 
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    initPolygon();
+    //initPolygon();
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     while (!glfwWindowShouldClose(window)) {
@@ -187,20 +97,38 @@ int main() {
         glClearColor(0.3, 0.5, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(shaderProgram);
-
+        //glUseProgram(shaderProgram);
+        shader.use();
         glBindVertexArray(VAO);
 
-        if (polygonSides >= 3) {
-            drawPolygon(polygonSides);
-        }
-        glDrawArrays(GL_TRIANGLES, 0, 24);
+        shader.setVec2("uOff", -1.0f, 0.0f);
+        shader.setVec3("uColor", 1.0f, 0.0f, 0.0f);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        shader.setVec2("uOff", 0.0f, 0.0f);
+        shader.setVec3("uColor", 0.0f, 1.0f, 0.0f);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        shader.setVec2("uOff", -1.0f, -1.0f);
+        shader.setVec3("uColor", 0.0f, 0.0f, 1.0f);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        shader.setVec2("uOff", 0.0f, -1.0f);
+        shader.setVec3("uColor", 1.0f, 1.0f, 0.0f);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // if (polygonSides >= 3) {
+        //     drawPolygon(polygonSides);
+        // }
 
         glfwSwapBuffers(window);
     }
 
     glDeleteBuffers(1, &VBO);
     glDeleteVertexArrays(1, &VAO);
+    //glDeleteBuffers(1, &polygonVBO);
+    //glDeleteVertexArrays(1, &polygonVAO);
+
+    shader.deleteProgram();
     glfwTerminate();
     return 0;
 }
@@ -305,13 +233,13 @@ void initPolygon() {
     glBindVertexArray(polygonVAO);
     glBindBuffer(GL_ARRAY_BUFFER, polygonVBO);
 
-    // Pozicija: 3 float-a
+
     glVertexAttribPointer(
             0, 3, GL_FLOAT, GL_FALSE,
             6 * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
 
-    // Boja: 3 float-a
+
     glVertexAttribPointer(
             1, 3, GL_FLOAT, GL_FALSE,
             6 * sizeof(float), (void *) (3 * sizeof(float)));
@@ -328,17 +256,15 @@ void drawPolygon(int N) {
     const float PI = 3.14159265358979323846f;
     const float radius = 0.5f;
 
-    // Boja mnogougla
+
     float red = 0.5f;
     float green = 0.3f;
     float blue = 0.2f;
 
-    // Centar mnogougla
+
     vertices.insert(vertices.end(), {0.0f, 0.0f, 0.0f,
                                      red, green, blue});
 
-    // Temena na kružnici.
-    // i <= N ponavlja prvo teme kako bi se mnogougao zatvorio.
     for (int i = 0; i <= N; i++) {
         float angle = 2.0f * PI * i / N;
 

@@ -11,10 +11,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Single-config generators (Make, Ninja): default to Release when unspecified.
 # Multi-config generators (Visual Studio, Xcode): choose with --config.
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
-endif()
+endif ()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
@@ -29,14 +29,14 @@ find_package(Threads REQUIRED)
 # Assimp: prefer the official CMake config (vcpkg, Homebrew, recent distros),
 # fall back to the bundled cmake/modules/FindASSIMP.cmake.
 find_package(assimp CONFIG QUIET)
-if(TARGET assimp::assimp)
+if (TARGET assimp::assimp)
     message(STATUS "Assimp: using CMake config package (assimp::assimp)")
     set(ASSIMP_LINK_TARGET assimp::assimp)
-else()
+else ()
     message(STATUS "Assimp: config package not found, trying FindASSIMP.cmake")
     find_package(ASSIMP REQUIRED)
     set(ASSIMP_LINK_TARGET ${ASSIMP_LIBRARIES})
-endif()
+endif ()
 
 # Optional: FreeType (only if installed; used by some ImGui/text setups)
 find_package(Freetype QUIET)
@@ -66,15 +66,19 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/app/*.h"
         "${CMAKE_SOURCE_DIR}/app/*.hpp")
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS}
+        app/Shader.cpp
+        app/Shader.hpp
+        app/Texture.cpp
+        app/Texture.hpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/app")
-if(EXISTS "${CMAKE_SOURCE_DIR}/include")
+if (EXISTS "${CMAKE_SOURCE_DIR}/include")
     target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/include")
-endif()
-if(DEFINED ASSIMP_INCLUDE_DIRS)
+endif ()
+if (DEFINED ASSIMP_INCLUDE_DIRS)
     target_include_directories(${PROJECT_NAME} PRIVATE ${ASSIMP_INCLUDE_DIRS})
-endif()
+endif ()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
@@ -88,9 +92,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         ${CMAKE_DL_LIBS}
         ${ASSIMP_LINK_TARGET})
 
-if(Freetype_FOUND)
+if (Freetype_FOUND)
     target_link_libraries(${PROJECT_NAME} PRIVATE Freetype::Freetype)
-endif()
+endif ()
 
 # Absolute path to resources (shaders, textures, models) for use in code
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -102,7 +106,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 # ---------------------------------------------------------------------------
 # Per-compiler / per-platform settings
 # ---------------------------------------------------------------------------
-if(MSVC)
+if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /permissive- /utf-8 /wd4100 /wd4189)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
             NOMINMAX
@@ -113,20 +117,19 @@ if(MSVC)
     set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
     set_target_properties(${PROJECT_NAME} PROPERTIES
             VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-else()
+else ()
     # GCC / Clang / AppleClang / MinGW
     target_compile_options(${PROJECT_NAME} PRIVATE
             -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter)
-endif()
+endif ()
 
-if(APPLE)
+if (APPLE)
     # Apple deprecated OpenGL (max 4.1 core); silence the warnings.
     target_compile_definitions(${PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION)
-endif()
+endif ()
 
 # Put the executable in the project root on every platform.
 # The $<1:...> generator expression stops Visual Studio / Xcode from appending
 # a per-configuration subfolder (Debug/, Release/).
 set_target_properties(${PROJECT_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "$<1:${CMAKE_SOURCE_DIR}>")
-
