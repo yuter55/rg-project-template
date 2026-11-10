@@ -6,73 +6,111 @@
 #include <glad/glad.h>
 
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 
 namespace {
-std::string readFile(std::string filePath) {
+std::string readFile(const std::string &filePath) {
     std::ifstream fileStream(filePath);
-    std::string line;
+    if (!fileStream.is_open()) {
+        std::cerr << "Cannot open file: " << filePath << "\n";
+    }
     std::stringstream buffer;
     buffer << fileStream.rdbuf();
     return buffer.str();
 }
+
+unsigned int compileShader(GLenum type, const std::string &source, const char *name) {
+    unsigned int shader = glCreateShader(type);
+    const char *src = source.c_str();
+    glShaderSource(shader, 1, &src, nullptr);
+    glCompileShader(shader);
+
+    int success = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (success == GL_FALSE) {
+        char infoLog[512];
+        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+        std::cout << "Failed to compile " << name << " shader\n"
+                  << infoLog << "\n";
+        glDeleteShader(shader);
+        return 0;
+    }
+    return shader;
+}
+
+std::filesystem::file_time_type lastWrite(const std::string &path) {
+    std::error_code ec;
+    auto t = std::filesystem::last_write_time(path, ec);
+    return ec ? std::filesystem::file_time_type::min() : t;
+}
 }// namespace
 
 
-Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
+unsigned int Shader::build(const std::string &vertexPath, const std::string &fragmentPath) {
+    unsigned int vs = compileShader(GL_VERTEX_SHADER, readFile(vertexPath), "vertex");
+    unsigned int fs = compileShader(GL_FRAGMENT_SHADER, readFile(fragmentPath), "fragment");
 
-    std::string vertexShaderSource = readFile(vertexShaderPath);
-    const char *vertexShaderSourcePointer = vertexShaderSource.c_str();
-    unsigned vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSourcePointer, nullptr);
-    glCompileShader(vertexShader);
+    if (vs == 0 || fs == 0) {
+        if (vs != 0) glDeleteShader(vs);
+        if (fs != 0) glDeleteShader(fs);
+        return 0;
+    }
+
+    unsigned int program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
 
     int success = 0;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (success == GL_FALSE) {
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        std::cout << "Failed to compile vertex shader\n"
-                  << infoLog << "\n";
-        std::exit(EXIT_FAILURE);
-    }
-
-    std::string fragmentShaderSource = readFile(fragmentShaderPath);
-    const char *fragmentShaderSourcePointer = fragmentShaderSource.c_str();
-    unsigned fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSourcePointer, nullptr);
-    glCompileShader(fragmentShader);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-
-    if (success == GL_FALSE) {
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        std::cout << "Failed to compile fragment shader\n"
-                  << infoLog << "\n";
-        std::exit(EXIT_FAILURE);
-    }
-
-    unsigned shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (success == GL_FALSE) {
-        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
+        char infoLog[512];
+        glGetProgramInfoLog(program, 512, nullptr, infoLog);
         std::cout << "Failed to link shader program\n"
                   << infoLog << "\n";
-        std::exit(EXIT_FAILURE);
+        glDeleteProgram(program);
+        return 0;
     }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    myId = shaderProgram;
+    return program;
+}
+Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath) {
+    vertexPath = vertexShaderPath;
+    fragmentPath = fragmentShaderPath;
+    vertexTime = lastWrite(vertexPath);
+    fragmentTime = lastWrite(fragmentPath);
+    myId = build(vertexPath, fragmentPath);
 }
 void Shader::use() {
     glUseProgram(myId);
+}
+bool Shader::reloadIfChanged() {
+    auto newVertexTime = lastWrite(vertexPath);
+    auto newFragmentTime = lastWrite(fragmentPath);
+
+    if (newVertexTime == vertexTime && newFragmentTime == fragmentTime) {
+        return false;
+    }
+
+    // pamtimo novo vreme i kad kompajliranje ne uspe, da ne ispisujemo grešku svaki frame
+    vertexTime = newVertexTime;
+    fragmentTime = newFragmentTime;
+
+    unsigned int newProgram = build(vertexPath, fragmentPath);
+    if (newProgram == 0) {
+        std::cout << "Shader reload failed, keeping previous version\n";
+        return false;
+    }
+
+    glDeleteProgram(myId);
+    myId = newProgram;
+    std::cout << "Shader reloaded\n";
+    return true;
 }
 
 void Shader::setVec2(const std::string &name, float x, float y) {

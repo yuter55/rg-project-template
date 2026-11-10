@@ -12,12 +12,19 @@
 class Shader {
     unsigned int myId;
 
+    std::string vertexPath;
+    std::string fragmentPath;
+    std::filesystem::file_time_type vertexTime;
+    std::filesystem::file_time_type fragmentTime;
+
+    static unsigned int build(const std::string &vertexPath, const std::string &fragmentPath);
 
 public:
     Shader(std::string vertexShaderPath, std::string fragmentShaderPath);
 
     void use();
 
+    bool reloadIfChanged();
 
     void setVec2(const std::string &name, float x, float y);
 
