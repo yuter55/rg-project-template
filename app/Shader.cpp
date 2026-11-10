@@ -3,11 +3,13 @@
 //
 
 #include "Shader.hpp"
-#include <glad/glad.h>
 
+
+#include <glad/glad.h>
 
 #include <filesystem>
 #include <fstream>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <sstream>
 
@@ -121,6 +123,9 @@ void Shader::setVec3(const std::string &name, float x, float y, float z) {
 }
 void Shader::setInt(const std::string &name, int value) {
     glUniform1i(glGetUniformLocation(myId, name.c_str()), value);
+}
+void Shader::setMat4(const std::string &name, const glm::mat4 &matrix) {
+    glUniformMatrix4fv(glGetUniformLocation(myId, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
 }
 void Shader::deleteProgram() {
     glDeleteProgram(myId);

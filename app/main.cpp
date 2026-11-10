@@ -8,6 +8,8 @@
 
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -74,9 +76,19 @@ int main() {
         glfwTerminate();
         return EXIT_FAILURE;
     }
-
+    //KVADRANTI
     Shader shader("resources/shaders/vertexShader.vs",
                   "resources/shaders/fragmentShader.fs");
+    //OSE
+    Shader axisShader("resources/shaders/axisShader.vs",
+                      "resources/shaders/axisShader.fs");
+    //RAVAN
+    Shader planeShader("resources/shaders/axisShader.vs",
+                       "resources/shaders/planeShader.fs");
+    //POD
+    Shader floorShader("resources/shaders/floorShader.vs",
+                       "resources/shaders/floorShader.fs");
+    Texture floorTexture("resources/textures/wood.png");
 
     float vertices[] = {
 
@@ -89,6 +101,8 @@ int main() {
             1.0f, 1.0f, 0.0f, 1.0f, 1.0f
 
     };
+
+    //KVADRANTI
 
     unsigned int VBO, VAO;
 
@@ -115,7 +129,171 @@ int main() {
     textures.emplace_back("resources/textures/marble.jpg");
     textures.emplace_back("resources/textures/matrix.jpg");
 
+    //OSE
+
+    float axisVertices[] = {
+
+            0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+
+            0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f};
+
+    unsigned int axisVAO, axisVBO;
+    glGenVertexArrays(1, &axisVAO);
+    glGenBuffers(1, &axisVBO);
+
+    glBindVertexArray(axisVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(axisVertices), axisVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    glm::mat4 view = glm::lookAt(glm::vec3(3.0f, 2.0f, 4.0f),
+                                 glm::vec3(0.0f, 0.0f, 0.0f),
+                                 glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 640.0f / 480.0f, 0.1f, 100.0f);
+    glm::mat4 axisMVP = projection * view;
+
+    GLfloat widthRange[2];
+    glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, widthRange);
+    std::cout << "Line width range: " << widthRange[0] << " - " << widthRange[1] << "\n";
+    glLineWidth(7.0f);
+
+    //RAVAN
+
+    float planeVertices[] = {
+            -1.0f, -1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,
+
+            -1.0f, -1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f};
+
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) nullptr);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+
+    //POD
+
+    float floorVertices[] = {
+
+            -2.0f, 0.0f, -2.0f, 0.0f, 0.0f,
+            2.0f, 0.0f, -2.0f, 4.0f, 0.0f,
+            2.0f, 0.0f, 2.0f, 4.0f, 4.0f,
+
+            -2.0f, 0.0f, -2.0f, 0.0f, 0.0f,
+            2.0f, 0.0f, 2.0f, 4.0f, 4.0f,
+            -2.0f, 0.0f, 2.0f, 0.0f, 4.0f};
+    unsigned int floorVAO, floorVBO;
+    glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorVBO);
+
+    glBindVertexArray(floorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(floorVertices), floorVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    //KOCKE
+
+    float cubeVertices[] = {
+
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+
+            -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+            0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+            -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
+            -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+
+            -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+            -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+            -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+            -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+            0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+            0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+            0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+            -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+
+            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+            -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f};
+
+    unsigned int cubeVAO, cubeVBO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    struct CubeInfo {
+        float x, z;
+        float size;
+        float angle;
+    };
+
+    CubeInfo cubes[4] = {
+            {-1.2f, -1.0f, 0.8f, 15.0f},
+            {1.0f, -1.3f, 0.5f, 45.0f},
+            {-1.1f, 0.9f, 0.6f, 30.0f},
+            {1.2f, 0.9f, 1.0f, 60.0f}};
+
     //initPolygon();
+
+    double lastShaderCheck = 0.0;
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     while (!glfwWindowShouldClose(window)) {
@@ -123,20 +301,74 @@ int main() {
         glfwPollEvents();
         glClearColor(0.3, 0.5, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_DEPTH_BUFFER_BIT);
 
         //glUseProgram(shaderProgram);
+        double now = glfwGetTime();
+        if (now - lastShaderCheck > 0.5) {
+            shader.reloadIfChanged();
+            lastShaderCheck = now;
+        }
         shader.use();
         shader.setInt("uTexture", 0);
         glBindVertexArray(VAO);
 
+        //KVADRANTI
+        glDisable(GL_DEPTH_TEST);
         for (int i = 0; i < 4; i++) {
+            glm::mat4 model = glm::translate(glm::mat4(1.0f),
+                                             glm::vec3(quadrantOffsets[i][0], quadrantOffsets[i][1], 0.0f));
+
             textures[i].bindTexture(0);
             shader.setInt("uMix", quadrantMix[i]);
             shader.setInt("uHasColor", quadrantHasColor[i]);
-            shader.setVec2("uOff", quadrantOffsets[i][0], quadrantOffsets[i][1]);
+            shader.setMat4("uModel", model);
             shader.setVec3("uColor", quadrantColors[i][0], quadrantColors[i][1], quadrantColors[i][2]);
             glDrawArrays(GL_TRIANGLES, 0, 6);
         }
+
+        //POD
+        glEnable(GL_DEPTH_TEST);
+        floorShader.use();
+        floorShader.setInt("uTexture", 0);
+        floorShader.setMat4("uMVP", axisMVP);
+        floorTexture.bindTexture(0);
+        glBindVertexArray(floorVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        //KOCKE
+        glBindVertexArray(cubeVAO);
+        for (int i = 0; i < 4; i++) {
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, glm::vec3(cubes[i].x, cubes[i].size / 2.0f, cubes[i].z));
+            model = glm::rotate(model, glm::radians(cubes[i].angle), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(cubes[i].size));
+
+
+            floorShader.setMat4("uMVP", axisMVP * model);
+            textures[i].bindTexture(0);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+        //RAVAN
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
+
+        planeShader.use();
+        planeShader.setMat4("uMVP", axisMVP);
+        glBindVertexArray(planeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+
+        //OSE
+        glDisable(GL_DEPTH_TEST);
+        axisShader.use();
+        axisShader.setMat4("uMVP", axisMVP);
+        glBindVertexArray(axisVAO);
+        glDrawArrays(GL_LINES, 0, 6);
         // if (polygonSides >= 3) {
         //     drawPolygon(polygonSides);
         // }
@@ -144,10 +376,31 @@ int main() {
         glfwSwapBuffers(window);
     }
 
+    //KVADRANTI
     glDeleteBuffers(1, &VBO);
     glDeleteVertexArrays(1, &VAO);
     //glDeleteBuffers(1, &polygonVBO);
     //glDeleteVertexArrays(1, &polygonVAO);
+
+    //OSE
+    glDeleteBuffers(1, &axisVBO);
+    glDeleteVertexArrays(1, &axisVAO);
+    axisShader.deleteProgram();
+
+    //RAVAN
+    glDeleteBuffers(1, &planeVBO);
+    glDeleteVertexArrays(1, &planeVAO);
+    planeShader.deleteProgram();
+
+    //POD
+    glDeleteBuffers(1, &floorVBO);
+    glDeleteVertexArrays(1, &floorVAO);
+    floorShader.deleteProgram();
+    floorTexture.deleteTexture();
+
+    //KOCKE
+    glDeleteBuffers(1, &cubeVBO);
+    glDeleteVertexArrays(1, &cubeVAO);
 
     for (auto &t: textures) t.deleteTexture();
     shader.deleteProgram();

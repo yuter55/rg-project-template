@@ -6,6 +6,7 @@
 #define PROJECT_SHADER_H
 
 #include <filesystem>
+#include <glm/glm.hpp>
 #include <string>
 
 
@@ -31,6 +32,8 @@ public:
     void setVec3(const std::string &name, float x, float y, float z);
 
     void setInt(const std::string &name, int value);
+
+    void setMat4(const std::string &name, const glm::mat4 &matrix);
 
     void deleteProgram();
 };
