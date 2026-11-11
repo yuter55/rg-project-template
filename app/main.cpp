@@ -8,6 +8,7 @@
 
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
@@ -29,6 +30,8 @@ void drawPolygon(int N);
 
 void initPolygon();
 
+void processInput(GLFWwindow *window);
+
 unsigned int polygonVAO, polygonVBO;
 int polygonSides = 0;
 
@@ -47,8 +50,42 @@ const float quadrantOffsets[4][2] = {
 int quadrantMix[4] = {0, 0, 0, 0};
 int quadrantHasColor[4] = {0, 0, 0, 0};
 
+struct CubeInfo {
+    float x, z;
+    float size;
+    float angle;
+};
+
+CubeInfo cubes[4] = {
+        {-1.2f, -1.0f, 0.8f, 15.0f},
+        {1.0f, -1.3f, 0.5f, 45.0f},
+        {-1.1f, 0.9f, 0.6f, 30.0f},
+        {1.2f, 0.9f, 1.0f, 60.0f}};
+
+const float cameraRadius = 0.2f;
+
+void resolveCubeCollisions(glm::vec3 &pos);
+
+
 std::vector<Texture> textures;
 bool useLinear = true;
+
+glm::vec3 cameraPos(3.0f, 2.0f, 4.0f);
+glm::vec3 cameraFront = glm::normalize(glm::vec3(-3.0f, -2.0f, -4.0f));
+glm::vec3 cameraUp(0.0f, 1.0f, 0.0f);
+
+float yaw = -126.87f;
+float pitch = -21.8f;
+
+float lastX = 320.0f, lastY = 240.0f;
+bool firstMouse = true;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+bool walkMode = false;
+const float eyeHeight = 0.6f;
+const float floorLimit = 2.0f;
 
 int main() {
 
@@ -70,6 +107,7 @@ int main() {
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
         std::cout << "Failed to initialize GLAD\n";
@@ -157,9 +195,7 @@ int main() {
 
     glBindVertexArray(0);
 
-    glm::mat4 view = glm::lookAt(glm::vec3(3.0f, 2.0f, 4.0f),
-                                 glm::vec3(0.0f, 0.0f, 0.0f),
-                                 glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 640.0f / 480.0f, 0.1f, 100.0f);
     glm::mat4 axisMVP = projection * view;
 
@@ -279,17 +315,6 @@ int main() {
 
     glBindVertexArray(0);
 
-    struct CubeInfo {
-        float x, z;
-        float size;
-        float angle;
-    };
-
-    CubeInfo cubes[4] = {
-            {-1.2f, -1.0f, 0.8f, 15.0f},
-            {1.0f, -1.3f, 0.5f, 45.0f},
-            {-1.1f, 0.9f, 0.6f, 30.0f},
-            {1.2f, 0.9f, 1.0f, 60.0f}};
 
     //initPolygon();
 
@@ -302,6 +327,14 @@ int main() {
         glClearColor(0.3, 0.5, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_DEPTH_BUFFER_BIT);
+
+        auto currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        processInput(window);
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        axisMVP = projection * view;
 
         //glUseProgram(shaderProgram);
         double now = glfwGetTime();
@@ -414,6 +447,11 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
 
+    if (key == GLFW_KEY_L && action == GLFW_PRESS) {
+        walkMode = !walkMode;
+        return;
+    }
+
     if (key == GLFW_KEY_F && action == GLFW_PRESS) {
         useLinear = !useLinear;
         for (auto &t: textures) {
@@ -512,6 +550,27 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 
 void cursor_position_callback(GLFWwindow *window, double xpos, double ypos) {
 
+    if (firstMouse) {
+        lastX = static_cast<float>(xpos);
+        lastY = static_cast<float>(ypos);
+        firstMouse = false;
+    }
+
+    const float sensitivity = 0.1f;
+    float xoffset = (static_cast<float>(xpos) - lastX) * sensitivity;
+    float yoffset = (lastY - static_cast<float>(ypos)) * sensitivity;
+    lastX = static_cast<float>(xpos);
+    lastY = static_cast<float>(ypos);
+
+    yaw += xoffset;
+    pitch = std::clamp(pitch + yoffset, -89.0f, 89.0f);
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+
     glfwGetCursorPos(window, &xpos, &ypos);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ||
         glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
@@ -526,6 +585,75 @@ void cursor_position_callback(GLFWwindow *window, double xpos, double ypos) {
         y = std::clamp(y, 0.0f, 1.0f);
 
         glClearColor(x, y, 0.0f, 1.0f);
+    }
+}
+
+void resolveCubeCollisions(glm::vec3 &pos) {
+    const glm::vec3 up(0.0f, 1.0f, 0.0f);
+
+    for (const auto &c: cubes) {
+        float half = c.size / 2.0f;
+        glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(c.angle), up);
+        glm::mat4 invRot = glm::rotate(glm::mat4(1.0f), glm::radians(-c.angle), up);
+
+
+        glm::vec4 local = invRot * glm::vec4(pos.x - c.x, 0.0f, pos.z - c.z, 0.0f);
+        float lx = local.x;
+        float lz = local.z;
+
+
+        float closestX = std::clamp(lx, -half, half);
+        float closestZ = std::clamp(lz, -half, half);
+        float dx = lx - closestX;
+        float dz = lz - closestZ;
+        float dist2 = dx * dx + dz * dz;
+
+        if (dist2 >= cameraRadius * cameraRadius) continue;
+
+        if (dist2 > 1e-8f) {
+
+            float dist = std::sqrt(dist2);
+            lx = closestX + dx / dist * cameraRadius;
+            lz = closestZ + dz / dist * cameraRadius;
+        } else {
+
+            float px = half - std::abs(lx);
+            float pz = half - std::abs(lz);
+            if (px < pz) {
+                lx = (lx >= 0.0f ? 1.0f : -1.0f) * (half + cameraRadius);
+            } else {
+                lz = (lz >= 0.0f ? 1.0f : -1.0f) * (half + cameraRadius);
+            }
+        }
+
+        glm::vec4 world = rot * glm::vec4(lx, 0.0f, lz, 0.0f);
+        pos.x = c.x + world.x;
+        pos.z = c.z + world.z;
+    }
+}
+
+void processInput(GLFWwindow *window) {
+    float speed = 2.5f * deltaTime;
+    glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
+
+    glm::vec3 forward = cameraFront;
+    if (walkMode) {
+        forward = glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) cameraPos += speed * forward;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) cameraPos -= speed * forward;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) cameraPos += speed * right;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) cameraPos -= speed * right;
+
+    if (walkMode) {
+        resolveCubeCollisions(cameraPos);
+        cameraPos.y = eyeHeight;
+        cameraPos.x = std::clamp(cameraPos.x, -floorLimit, floorLimit);
+        cameraPos.z = std::clamp(cameraPos.z, -floorLimit, floorLimit);
+    } else {
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) cameraPos += speed * cameraUp;
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) cameraPos -= speed * cameraUp;
     }
 }
 
