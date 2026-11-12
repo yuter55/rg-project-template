@@ -70,7 +70,9 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS}
         app/Shader.cpp
         app/Shader.hpp
         app/Texture.cpp
-        app/Texture.hpp)
+        app/Texture.hpp
+        app/Camera.cpp
+        app/Camera.hpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/app")
 if (EXISTS "${CMAKE_SOURCE_DIR}/include")
