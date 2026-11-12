@@ -25,16 +25,16 @@ public:
 
     glm::mat4 viewMatrix() const;
 
-    // pomeranje; u režimu hodanja se ignorišu Up/Down, a napred/nazad ide po horizontali
+
     void move(CameraMove direction, float deltaTime);
 
-    // pomeraj miša u pikselima (xoffset udesno, yoffset nagore)
+
     void rotate(float xoffset, float yoffset);
 
     void toggleWalkMode();
     bool isWalking() const { return walkMode; }
 
-    // u režimu hodanja: fiksna visina i ograničenje na pod; u letenju ne radi ništa
+
     void constrainToFloor();
 
     glm::vec3 getFront() const { return front; }
